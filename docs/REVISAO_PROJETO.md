@@ -1,5 +1,13 @@
 # Revisão do MGPEB — 6 de outubro de 2026
 
+## Atualização após as correções da versão 1.1
+
+Os achados 1 a 3 da revisão abaixo foram tratados: reavaliação de saúde e dependências com suspensão/recuperação, validação dos tipos antes de percorrer listas e regeneração da saída dos exemplos em UTF-8. O esquema ASCII foi substituído pelo diagrama `portas_logicas.svg` (AND/NOT). A capa ainda depende da identificação da equipe.
+
+Validação atual: 17 testes aprovados e 14 cenários executados; os testes incluem 32 combinações booleanas, quatro limites de combustível, entradas malformadas, falha e recuperação da Energia, dependências em ordem inversa, módulo Energia alternativo e preservação do acidente. O relatório acadêmico permanece com 10 páginas. O guia separado explica os comportamentos e as mudanças em detalhe.
+
+O restante deste documento preserva a revisão anterior como registro dos problemas e de suas reproduções. As quantidades de oito testes e onze cenários abaixo descrevem a versão anterior, não o estado atual.
+
 Escopo: código atual, exemplos, testes, experimento anterior, planejamento, instruções, relatório e geração do PDF. Os achados do simulador referem-se ao código herdado do commit `cbaf4d0`; `mgpeb.py` não foi alterado nesta entrega.
 
 ## Consideração geral

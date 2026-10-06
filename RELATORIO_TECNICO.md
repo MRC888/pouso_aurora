@@ -5,7 +5,7 @@
 
 **Equipe:** preencher os nomes dos integrantes
 
-**Versão do protótipo:** 1.0 — outubro de 2026
+**Versão do protótipo:** 1.1 — outubro de 2026
 
 **Revisão documental:** 6 de outubro de 2026
 
@@ -51,7 +51,7 @@ A versão principal está em `mgpeb.py`. `exemplos.py` contém cenários de test
 
 ## 2. Estruturas de dados e fluxo (anexo integrado)
 
-Cada módulo é uma lista de 12 posições. Constantes como `ID`, `MASSA` e `COMBUSTIVEL` dão nomes a essas posições. A escolha imita vetores apresentados em aula e deixa visível como cada campo é acessado pelo índice. A função `validar` confere quantidade e tipo dos campos, faixas numéricas, tipos aceitos e identificadores únicos antes da simulação.
+Cada módulo é uma lista de 12 posições. Constantes como `ID`, `MASSA` e `COMBUSTIVEL` dão nomes a essas posições. A escolha imita vetores apresentados em aula e deixa visível como cada campo é acessado pelo índice. A função `validar` confere primeiro os tipos das listas e de suas linhas; depois verifica quantidade e tipo dos campos, faixas numéricas e identificadores únicos. Entradas malformadas são rejeitadas com aviso e retorno vazio.
 
 A busca é linear: `buscar` percorre os módulos até encontrar um tipo ou identificador; `buscar_extremo` conserva o índice do menor ou maior valor encontrado. Para cinco módulos, a busca linear é suficiente e simples de explicar. Em uma lista muito maior, seria possível avaliar outras estruturas, mas isso está fora do objetivo didático atual.
 
@@ -59,13 +59,15 @@ A fila `fila` recebe os módulos quando o ETA chega. O primeiro índice é retir
 
 A lista `aptos` reúne somente módulos aprovados. `ordenar` implementa ordenação por inserção: pega um candidato e desloca os anteriores até encontrar sua posição. O cadastro original não é reordenado. Empates completos mantêm a ordem de entrada, o que torna o resultado previsível.
 
+Um módulo já pousado fica `suspenso` se perder sensores, sistemas ou dependências. A falha de Energia pode suspender os dependentes; um reparo permite reativação, sem novo pouso ou consumo. Acidentes não são recuperados por eventos de reparo. Os estados em solo são recalculados a cada ciclo.
+
 O histórico também é copiado para `pilha`. Seu topo é o registro mais recente, seguindo LIFO. `ultimo_evento` consulta esse topo; `desfazer_consulta` devolve uma nova pilha sem ele. Essa operação demonstra a pilha, mas não desfaz pousos nem altera combustível.
 
 ### Passos de cada ciclo
 
 1. Aplicar eventos vencidos, na ordem do horário.
 2. Inserir na fila os módulos cujo ETA chegou.
-3. Mover as chegadas para a espera e atualizar dependências operacionais.
+3. Mover as chegadas para a espera e reavaliar saúde e dependências operacionais.
 4. Verificar combustível, sensores, sistemas, atmosfera e área.
 5. Se não houver candidatos, avançar o relógio ao próximo ETA ou evento; sem eventos futuros, encerrar com pendências.
 6. Ordenar os autorizados, reservar a área, simular a duração e o consumo estimados e registrar o resultado.
@@ -86,15 +88,11 @@ D = área livre
 AUTORIZAR = C AND S AND E AND A AND D
 ```
 
-Representação da regra:
+Representação da regra com símbolos de portas lógicas:
 
-```text
-[C] --\\
-[S] ---\\
-[E] ---- AND ----> [Autorização]
-[A] ---/
-[D] --/
-```
+![Portas AND e NOT para autorizar ou adiar o pouso](docs/portas_logicas.svg)
+
+Figura 1. AND autoriza quando as cinco entradas são verdadeiras; NOT representa o adiamento quando a autorização é falsa. O código registra os motivos desse bloqueio, sem precisar armazenar uma variável ADIAR.
 
 O protótipo ainda não verifica ângulo de entrada, coordenadas, integridade estrutural ou condição independente do paraquedas. Esses itens aparecem nas anotações do projeto e podem ser incluídos como novos sinais booleanos, com validação e cenários de teste próprios.
 
@@ -104,7 +102,7 @@ A urgência é calculada somente depois da autorização; combustível crítico 
 
 O código usa números de prioridade de 1 a 5, em que um número maior significa maior importância, conforme a convenção deste protótipo. É importante manter essa convenção igual no relatório, no cadastro e no diagrama de decisão.
 
-Os cenários cobrem operação normal, combustível insuficiente, sensores falhos, clima adverso, área ocupada, urgência, ETA futuro, dependência de ativação, mudança de clima e acidente. O teste automatizado confirma que bloqueios não autorizam pouso e que um acidente obstrui a área.
+Os 14 cenários incluem operação normal, bloqueios, urgência, ETA futuro, dependências, clima, acidente, falha da Energia e recuperação na base. Os 17 testes conferem esses comportamentos, entradas malformadas e as 32 combinações booleanas. Uma falha durante a descida é aplicada ao final e pode impedir a ativação na base.
 
 <!-- PAGE BREAK -->
 
@@ -139,7 +137,7 @@ Para massa e taxa fixas, o consumo cresce linearmente com a duração. No gráfi
 
 ![Gráfico do consumo e do mínimo de combustível em função da duração](docs/grafico_topico_04.svg)
 
-Figura 1. Consumo estimado e mínimo com reserva para massa de 1.000 kg. Elaborado a partir da fórmula e dos parâmetros do protótipo.
+Figura 2. Consumo estimado e mínimo com reserva para massa de 1.000 kg. Elaborado a partir da fórmula e dos parâmetros do protótipo.
 
 | Duração (min) | Consumo C(t) (kg) | Mínimo F(t) (kg) |
 |---:|---:|---:|

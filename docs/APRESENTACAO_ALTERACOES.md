@@ -1,6 +1,6 @@
 # Aurora Siger — apresentação das alterações e revisão
 
-Apresentação escrita em oito slides. Revisão de 6 de outubro de 2026.
+Apresentação histórica da integração documental, anterior às correções 1.1. Revisão de 6 de outubro de 2026. As pendências abaixo foram tratadas depois; consultar `GUIA_DETALHADO.md` e a atualização de `REVISAO_PROJETO.md` para o estado atual.
 
 ## Slide 1 — Objetivo desta entrega
 
