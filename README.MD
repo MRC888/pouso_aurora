@@ -13,6 +13,8 @@ da base em Marte. A implementação atual está em `mgpeb.py`.
 - `gerar_relatorio_pdf.py`: converte a fonte Markdown, tabelas e gráfico para PDF.
 - `LEIA-ME.txt`: explicação direta dos campos, regras, estruturas e comandos.
 - `ROADMAP.MD`: planejamento e decisões da equipe.
+- `docs/APRESENTACAO_ALTERACOES.md`: apresentação escrita das partes 5 e 6 e dos motivos das alterações.
+- `docs/REVISAO_PROJETO.md`: revisão geral, evidências de testes e pendências para a entrega.
 - `main.py`: experimento antigo de descida, mantido para comparação.
 
 ## Executar
@@ -28,6 +30,18 @@ Para regenerar o PDF, instale `requirements-relatorio.txt`; ReportLab e svglib
 são dependências opcionais apenas do gerador de documentos.
 O simulador atual trata autorização, fila e consumo estimado; não calcula uma
 trajetória ou velocidade física de pouso.
+
+Para gerar o relatório, use o mesmo ambiente Python nos dois comandos:
+
+```text
+python -m pip install -r requirements-relatorio.txt
+python gerar_relatorio_pdf.py
+```
+
+A revisão documental de 6 de outubro de 2026 integra os itens 5 (evolução da
+computação e hardware) e 6 (ESG) do enunciado. O PDF tem 10 páginas, e a seção 2
+contém o anexo integrado de estruturas de dados. A combinação documental foi
+verificada com Python 3.12, ReportLab 4.4.9 e svglib 2.3.0.
 
 ---
 

@@ -80,7 +80,7 @@ def converter_inline(texto):
     texto = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", texto)
     texto = re.sub(r"`(.+?)`", r'<font name="Courier">\1</font>', texto)
     texto = re.sub(
-        r"(https?://[^\s&lt;&gt;]+)",
+        r"(https?://[^\s<>]+)",
         r'<link href="\1" color="#176B87">\1</link>',
         texto,
     )
@@ -110,6 +110,7 @@ class GraficoSVG(Flowable):
         self.fator = fator
         self.width = desenho.width * fator
         self.height = desenho.height * fator
+        self.keepWithNext = True  # Mantém o gráfico junto de sua legenda.
 
     def draw(self):
         self.canv.saveState()
@@ -224,7 +225,6 @@ def gerar():
                 if desenho is None:
                     raise ValueError(f"Não foi possível ler o gráfico: {caminho_svg}")
                 elementos.append(GraficoSVG(desenho, documento.width, 210))
-                elementos.append(Spacer(1, 5))
         else:
             paragrafo.append(linha)
     fechar_paragrafo()
