@@ -5,7 +5,7 @@
 
 **Equipe:** preencher os nomes dos integrantes
 
-**Versão do protótipo:** 1.1 — outubro de 2026
+**Versão do protótipo:** 1.2 — outubro de 2026
 
 **Revisão documental:** 6 de outubro de 2026
 
@@ -102,7 +102,7 @@ A urgência é calculada somente depois da autorização; combustível crítico 
 
 O código usa números de prioridade de 1 a 5, em que um número maior significa maior importância, conforme a convenção deste protótipo. É importante manter essa convenção igual no relatório, no cadastro e no diagrama de decisão.
 
-Os 14 cenários incluem operação normal, bloqueios, urgência, ETA futuro, dependências, clima, acidente, falha da Energia e recuperação na base. Os 17 testes conferem esses comportamentos, entradas malformadas e as 32 combinações booleanas. Uma falha durante a descida é aplicada ao final e pode impedir a ativação na base.
+Os 14 cenários incluem operação normal, bloqueios, urgência, ETA futuro, dependências, clima, acidente, falha da Energia e recuperação na base. Os 21 testes conferem esses comportamentos, entradas malformadas e as 32 combinações booleanas. Uma falha durante a descida é aplicada ao final e pode impedir a ativação na base.
 
 <!-- PAGE BREAK -->
 

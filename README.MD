@@ -1,3 +1,8 @@
+> Revisão de integração da Fase 2: 21 testes e 14 cenários. Consulte
+> `docs/REVISAO_RIGOROSA_DOUGLAS.md` para achados, correções e limitações.
+> Execute `python auditoria.py .` após instalar as dependências documentais.
+> O guia detalhado explica a base 1.1 (17 testes); esta revisão acrescenta quatro testes.
+
 # MGPEB — Aurora Siger
 
 Protótipo didático para organizar a autorização e a ordem de pouso dos módulos

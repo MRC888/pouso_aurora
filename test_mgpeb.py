@@ -1,6 +1,6 @@
 """Validação externa: unittest/AST não fazem parte do código do aluno."""
 import ast
-from itertools import product
+from itertools import product, permutations
 import contextlib
 import copy
 import io
@@ -235,6 +235,45 @@ class TestMGPEB(unittest.TestCase):
         self.assertEqual(s[0][0][g.ESTADO], "acidente")
         self.assertEqual(s[7], [])
         self.assertEqual(s[6][1], "obstruída")
+
+    def test_todas_permutacoes_candidatos(self):
+        mods = [montar("E", "Energia"), montar("H", "Habitação"),
+                montar("G", "Logística"), montar("M", "Médico", fuel=13),
+                montar("L", "Laboratório", fuel=12)]
+        for entrada in permutations(range(5)):
+            ordem = list(entrada)
+            g.ordenar(ordem, mods, g.CONFIG)
+            self.assertEqual(ordem, [4, 3, 0, 1, 2])
+
+    def test_eventos_empatados_respeitam_cadastro(self):
+        for valores in ([False, True], [True, False]):
+            eventos = [[6, "sistemas", valor, "E"] for valor in valores]
+            s = g.simular([montar("E", "Energia")], eventos, [True, "livre"], g.CONFIG)
+            self.assertEqual(s[0][0][g.SISTEMAS], valores[-1])
+            self.assertEqual(s[0][0][g.ESTADO], "operacional" if valores[-1] else "suspenso")
+            self.assertEqual(len(self.inicios(s)), 1)
+
+    def test_falha_habitacao_isola_dependencia_laboratorio(self):
+        mods = [montar("E", "Energia"), montar("H", "Habitação"),
+                montar("M", "Médico"), montar("L", "Laboratório")]
+        eventos = [[21, "sensores", False, "H"]]
+        s = g.simular(mods, eventos, [True, "livre"], g.CONFIG)
+        self.assertEqual([m[g.ESTADO] for m in s[0]],
+                         ["operacional", "suspenso", "operacional", "suspenso"])
+        s = g.simular(mods, eventos + [[22, "sensores", True, "H"]], [True, "livre"], g.CONFIG)
+        self.assertTrue(all(m[g.ESTADO] == "operacional" for m in s[0]))
+        self.assertEqual(len(self.inicios(s)), 4)
+        self.assertTrue(all(m[g.COMBUSTIVEL] == 20 for m in s[0]))
+
+    def test_simulacao_e_pilha_vazias(self):
+        s = g.simular([], [], [True, "livre"], g.CONFIG)
+        self.assertEqual(s[0], [])
+        self.assertEqual(s[1], [])
+        self.assertEqual(s[7], [])
+        self.assertEqual(s[5], 0)
+        self.assertEqual(g.buscar([], g.ID, "E"), -1)
+        self.assertEqual(g.desfazer_consulta([]), [])
+        self.assertEqual(g.ultimo_evento([]), "Pilha de consulta vazia")
 
     def test_recursos_do_codigo_estudantil(self):
         arvore = ast.parse(Path(g.__file__).read_text(encoding="utf-8"))

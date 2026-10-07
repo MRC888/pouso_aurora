@@ -1,3 +1,5 @@
+> Registro da revisão da versão 1.1. A revisão atual está em REVISAO_RIGOROSA_DOUGLAS.md.
+
 # Revisão do MGPEB — 6 de outubro de 2026
 
 ## Atualização após as correções da versão 1.1
