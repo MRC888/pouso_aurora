@@ -1,0 +1,999 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Missão Aurora</title>
+<!-- Painel didático do MGPEB. Só mostra o que o mgpeb.py decidiu:
+     os dados vêm de dados.js, gerado por exportar_painel.py.
+     A sala é a ilustração de referência (img/sala.png, com o vidro vazado);
+     tudo o que está vivo é desenhado por cima, nas telas da própria arte. -->
+<style>
+  :root {
+    --fundo: #0c0b1e;
+    --rosa: #ff3d7f;
+    --ciano: #46f0ff;
+    --ciano-fraco: #46f0ff55;
+    --texto: #c4fbff;
+    --texto-fraco: #74b4bf;
+    --verde: #4dff95;
+    --vermelho: #ff4d63;
+    --ambar: #ffc44d;
+    --tela: #06141c;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--fundo);
+    color: var(--texto);
+    font-family: var(--mono);
+    overflow: hidden;
+  }
+
+  /* O palco tem o tamanho da arte (1344x768) e é escalado para caber na janela. */
+  .palco {
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 1344px; height: 768px;
+    transform-origin: 0 0;
+  }
+  .palco > * { position: absolute; }
+  #ceu { left: 374px; top: 170px; width: 587px; height: 297px; }
+  .arte { left: 0; top: 0; width: 1344px; height: 768px; pointer-events: none; }
+
+  /* ---------- Letreiro (cobre o texto da arte) ---------- */
+  .letreiro {
+    left: 466px; top: 110px; width: 400px; height: 47px;
+    border: 2px solid var(--ciano);
+    border-radius: 7px;
+    background: #0b0a22;
+    box-shadow: 0 0 9px var(--ciano), inset 0 0 8px var(--ciano-fraco);
+    text-align: center;
+    padding-top: 3px;
+  }
+  .letreiro b {
+    display: block;
+    font-size: 17px;
+    letter-spacing: .14em;
+    color: var(--ciano);
+    text-shadow: 0 0 7px var(--ciano);
+  }
+  .letreiro span {
+    display: block;
+    font-size: 12px;
+    letter-spacing: .16em;
+    color: var(--rosa);
+    text-shadow: 0 0 7px var(--rosa);
+  }
+
+  /* ---------- Telas da parede: desenhadas em 2x e encaixadas em perspectiva ---------- */
+  .tela {
+    left: 0; top: 0;
+    transform-origin: 0 0;
+    background: linear-gradient(180deg, #072230, var(--tela));
+    border: 3px solid var(--ciano);
+    border-radius: 12px;
+    box-shadow: 0 0 14px var(--ciano-fraco), inset 0 0 26px #46f0ff22;
+    padding: 12px 16px;
+    overflow: hidden;
+    color: var(--texto);
+    font-size: 19px;
+  }
+  .tela::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(0deg, transparent 0 3px, #00000030 3px 5px);
+    pointer-events: none;
+  }
+  .tela h2 {
+    margin: 0 0 6px;
+    font-size: 15px;
+    letter-spacing: .2em;
+    font-weight: 700;
+    color: var(--ciano);
+    text-shadow: 0 0 6px var(--ciano-fraco);
+    display: flex;
+    justify-content: space-between;
+  }
+  .tela h2 small { color: var(--texto-fraco); letter-spacing: .05em; font-weight: 400; }
+
+  #t-missao { width: 272px; height: 140px; }
+  .relogio { font-size: 46px; font-weight: 700; color: var(--ciano); text-shadow: 0 0 12px var(--ciano); line-height: 1; }
+  .linha-amb { display: flex; justify-content: space-between; margin-top: 8px; font-size: 17px; }
+
+  #t-fila { width: 276px; height: 240px; }
+  .fila { list-style: none; margin: 0; padding: 0; }
+  .fila li {
+    display: grid;
+    grid-template-columns: 30px 28px 1fr 16px;
+    align-items: center;
+    height: 34px;
+    border-bottom: 1px solid #46f0ff26;
+    font-size: 18px;
+  }
+  .fila .pos { color: var(--texto-fraco); font-size: 15px; }
+  .fila .id { color: var(--ciano); font-weight: 700; }
+  .luz { width: 13px; height: 13px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; }
+
+  #t-portas { width: 272px; height: 150px; padding-top: 8px; }
+  #t-portas svg { display: block; width: 100%; height: 108px; }
+  #t-portas text { font: 700 14px var(--mono); fill: var(--texto); }
+
+  #t-comb { width: 276px; height: 236px; }
+  .barra { display: grid; grid-template-columns: 26px 1fr 62px; align-items: center; gap: 8px; height: 34px; font-size: 18px; }
+  .barra .id { color: var(--ciano); font-weight: 700; }
+  .trilho { position: relative; height: 15px; border: 2px solid #46f0ff66; border-radius: 3px; }
+  .cheio { position: absolute; inset: 0 auto 0 0; background: var(--ciano); box-shadow: 0 0 8px var(--ciano); }
+  .cheio.urgente { background: var(--ambar); box-shadow: 0 0 8px var(--ambar); }
+  .cheio.baixo { background: var(--vermelho); box-shadow: 0 0 8px var(--vermelho); }
+  .cheio.solo { background: #6f93ad; box-shadow: none; }
+  .minimo { position: absolute; top: -6px; bottom: -6px; width: 4px; background: var(--rosa); box-shadow: 0 0 6px var(--rosa); }
+  .barra .kg { text-align: right; color: var(--texto-fraco); font-size: 16px; }
+
+  #t-crt {
+    width: 220px; height: 170px;
+    background: radial-gradient(ellipse at center, #0a2a22 0%, #031410 100%);
+    border-color: #2fae8a;
+    box-shadow: 0 0 14px #4dff9544, inset 0 0 30px #000;
+    color: var(--verde);
+    text-shadow: 0 0 6px #4dff9599;
+    font-size: 21px;
+    line-height: 1.25;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+  }
+  #t-crt .titulo { font-size: 13px; color: #2fae8a; letter-spacing: .2em; margin-bottom: auto; }
+  #t-crt .agora { font-weight: 700; }
+  #t-crt .agora::after { content: "█"; animation: pisca 1s steps(1) infinite; }
+  @keyframes pisca { 50% { opacity: 0; } }
+
+  .ok { color: var(--verde); }
+  .ruim { color: var(--vermelho); }
+  .aviso { color: var(--ambar); }
+  .e-orbita { color: #9fb6cc; }
+  .e-espera { color: var(--ambar); }
+  .e-descendo { color: var(--ciano); }
+  .e-pousado { color: #9fd8ff; }
+  .e-operacional { color: var(--verde); }
+  .e-suspenso { color: var(--ambar); }
+  .e-acidente { color: var(--vermelho); }
+
+  /* ---------- HUD dentro do vidro ---------- */
+  .hud { font-size: 11px; color: var(--ciano); text-shadow: 0 0 5px #000, 0 0 6px var(--ciano-fraco); }
+  .hud .grande { font-size: 13px; font-weight: 700; letter-spacing: .12em; }
+  .hud .fraco { color: var(--texto-fraco); }
+  #hud-orbita { left: 390px; top: 184px; }
+  #hud-base { left: 760px; top: 184px; width: 186px; text-align: right; }
+  #hud-area { left: 386px; top: 430px; }
+  #hud-area .grande { font-size: 11px; letter-spacing: .02em; }
+  .telemetria {
+    left: 646px; top: 388px; width: 302px; height: 70px;
+    border: 1px solid #46f0ff66;
+    border-radius: 6px;
+    background: #04101acc;
+    padding: 5px 8px;
+    font-size: 10px;
+    line-height: 1.42;
+    color: var(--texto);
+    overflow: hidden;
+  }
+  .telemetria div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .telemetria .t-acidente { color: var(--vermelho); }
+  .telemetria .t-evento { color: var(--ambar); }
+  .telemetria .t-motivo { color: var(--ambar); }
+
+  /* ---------- Controles sobre a mesa ---------- */
+  .controles {
+    left: 342px; top: 552px;
+    display: flex; align-items: center; gap: 6px;
+    font-size: 10px; color: var(--texto-fraco); letter-spacing: .12em;
+  }
+  select, .controles button {
+    font: inherit;
+    font-size: 11px;
+    letter-spacing: 0;
+    color: var(--ciano);
+    background: #0a0a24e6;
+    border: 1px solid var(--ciano);
+    border-radius: 5px;
+    padding: 3px 6px;
+    box-shadow: 0 0 6px var(--ciano-fraco);
+    cursor: pointer;
+  }
+  .controles button { min-width: 26px; }
+  .controles button:hover, select:hover { background: #46f0ff22; }
+  .controles button:focus-visible, select:focus-visible { outline: 2px solid var(--rosa); outline-offset: 1px; }
+  .linha-tempo {
+    left: 342px; top: 578px; width: 650px;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 10px; color: var(--texto-fraco);
+  }
+  .linha-tempo input { flex: 1; accent-color: var(--ciano); }
+
+  /* ---------- Tela ampliada ao clicar ---------- */
+  .tela { cursor: zoom-in; transition: transform .35s ease, box-shadow .35s; }
+  .tela.aberta { cursor: zoom-out; z-index: 5; box-shadow: 0 0 0 2000px #05050fb0, 0 0 22px var(--ciano); }
+  .dica {
+    left: 1000px; top: 552px; width: 300px; text-align: right;
+    font-size: 9px; color: var(--texto-fraco); letter-spacing: .08em;
+  }
+</style>
+</head>
+<body>
+<div class="palco" id="palco">
+  <canvas id="ceu"></canvas>
+  <img class="arte" src="img/sala.png" alt="">
+
+  <header class="letreiro"><b>MISSÃO AURORA:</b><span>POUSO DOS MÓDULOS EM MARTE</span></header>
+
+  <section class="tela" id="t-missao">
+    <h2>MISSÃO <small>MGPEB</small></h2>
+    <div class="relogio" id="relogio"></div>
+    <div class="linha-amb"><span id="amb-clima"></span><span id="amb-area"></span></div>
+  </section>
+  <section class="tela" id="t-fila">
+    <h2>FILA DE POUSO <small id="fila-info"></small></h2>
+    <ol class="fila" id="fila"></ol>
+  </section>
+  <section class="tela" id="t-portas">
+    <h2>AUTORIZAÇÃO <small id="portas-id"></small></h2>
+    <svg id="portas" viewBox="0 0 240 108" aria-label="Porta lógica de autorização"></svg>
+  </section>
+  <section class="tela" id="t-comb">
+    <h2>COMBUSTÍVEL <small>kg</small></h2>
+    <div id="barras"></div>
+  </section>
+  <section class="tela" id="t-crt">
+    <div class="titulo">MGPEB://LOG</div>
+    <div id="crt"></div>
+  </section>
+
+  <div class="hud" id="hud-orbita"><div class="grande">ÓRBITA</div><div class="fraco" id="hud-orbita-ids"></div></div>
+  <div class="hud" id="hud-base"><div class="grande">BASE</div><div class="fraco" id="hud-base-ids"></div><div class="fraco" id="hud-alertas"></div></div>
+  <div class="hud" id="hud-area"><div class="fraco">ÁREA DE POUSO</div><div class="grande" id="hud-area-val"></div></div>
+  <div class="telemetria" id="telemetria"></div>
+
+  <div class="controles">
+    <label>CENÁRIO <select id="seletor" aria-label="Cenário"></select></label>
+    <button id="b-inicio" title="Voltar ao início" aria-label="Voltar ao início">↺</button>
+    <button id="b-play" title="Reproduzir / pausar (espaço)" aria-label="Reproduzir ou pausar">▶</button>
+    <button id="b-passo" title="Próximo fato (→)" aria-label="Próximo fato">⏭</button>
+    <select id="velocidade" aria-label="Velocidade"><option value="1">1x</option><option value="2">2x</option><option value="4">4x</option></select>
+  </div>
+  <div class="linha-tempo"><input id="barra-tempo" type="range" min="0" max="1000" value="0" aria-label="Linha do tempo"><span id="contador"></span></div>
+  <div class="dica">clique numa tela para ampliar</div>
+</div>
+
+<script src="dados.js"></script>
+<script>
+"use strict";
+
+const ARTE = { w: 1344, h: 768 };
+// Cantos de cada tela da arte, medidos em pixels da imagem: TL, TR, BL, BR.
+const QUADROS = {
+  "t-missao": [[190, 166], [326, 191], [188, 240], [324, 260]],
+  "t-fila":   [[196, 311], [334, 322], [195, 440], [335, 433]],
+  "t-portas": [[1002, 190], [1138, 165], [1006, 253], [1142, 235]],
+  "t-comb":   [[997, 325], [1134, 314], [997, 443], [1136, 436]],
+  "t-crt":    [[510, 436], [622, 430], [509, 523], [620, 517]]
+};
+const VIDRO = { x: 374, y: 170, w: 587, h: 297 };
+
+const ROTULO = {
+  "órbita": "ÓRBITA", espera: "ESPERA", descendo: "DESCENDO", pousado: "POUSADO",
+  operacional: "OPERACIONAL", suspenso: "SUSPENSO", acidente: "ACIDENTE"
+};
+const CLASSE = {
+  "órbita": "e-orbita", espera: "e-espera", descendo: "e-descendo", pousado: "e-pousado",
+  operacional: "e-operacional", suspenso: "e-suspenso", acidente: "e-acidente"
+};
+const COR = {
+  "órbita": "#9fb6cc", espera: "#ffc44d", descendo: "#46f0ff", pousado: "#9fd8ff",
+  operacional: "#4dff95", suspenso: "#ffc44d", acidente: "#ff4d63"
+};
+const PORTAS = [["combustivel", "COMB"], ["saude", "SENS"], ["clima", "ATM"], ["area", "ÁREA"]];
+const NO_SOLO = ["pousado", "operacional", "suspenso", "acidente"];
+const NO_ALTO = ["órbita", "espera", "descendo"];
+
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => Number(n).toFixed(1);
+function el(tag, classe, texto) {
+  const e = document.createElement(tag);
+  if (classe) e.className = classe;
+  if (texto !== undefined) e.textContent = texto;
+  return e;
+}
+
+/* ---------- Perspectiva: leva um retângulo w x h para 4 cantos ---------- */
+function adj(m) {
+  return [m[4]*m[8]-m[5]*m[7], m[2]*m[7]-m[1]*m[8], m[1]*m[5]-m[2]*m[4],
+          m[5]*m[6]-m[3]*m[8], m[0]*m[8]-m[2]*m[6], m[2]*m[3]-m[0]*m[5],
+          m[3]*m[7]-m[4]*m[6], m[1]*m[6]-m[0]*m[7], m[0]*m[4]-m[1]*m[3]];
+}
+function mult(a, b) {
+  const c = [];
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
+    let s = 0;
+    for (let k = 0; k < 3; k++) s += a[3*i+k] * b[3*k+j];
+    c.push(s);
+  }
+  return c;
+}
+function base(p) {
+  const m = [p[0][0], p[1][0], p[2][0], p[0][1], p[1][1], p[2][1], 1, 1, 1];
+  const a = adj(m);
+  const v = [a[0]*p[3][0] + a[1]*p[3][1] + a[2], a[3]*p[3][0] + a[4]*p[3][1] + a[5], a[6]*p[3][0] + a[7]*p[3][1] + a[8]];
+  return mult(m, [v[0], 0, 0, 0, v[1], 0, 0, 0, v[2]]);
+}
+function encaixar(elemento, cantos) {
+  const w = elemento.offsetWidth, h = elemento.offsetHeight;
+  const origem = base([[0, 0], [w, 0], [0, h], [w, h]]);
+  const t = mult(base([cantos[0], cantos[1], cantos[2], cantos[3]]), adj(origem));
+  for (let i = 0; i < 9; i++) t[i] = t[i] / t[8];
+  elemento.style.transform = `matrix3d(${t[0]},${t[3]},0,${t[6]},${t[1]},${t[4]},0,${t[7]},0,0,1,0,${t[2]},${t[5]},0,${t[8]})`;
+}
+
+/* ---------- Roteiro: a linha do tempo exportada vira cenas com hora real ----------
+   Quadro = tudo o que a tela mostra num instante. Cada passo exportado produz
+   um novo quadro; nada é calculado aqui além de copiar o que o simulador gravou. */
+const SEG_POR_MIN = 0.7;   // 1 minuto simulado = 0,7 s na velocidade 1x
+const ESPERA_MAX = 2.5;    // espera longa sem voo é encurtada na tela
+const PAUSA = { log: 0.55, checagem: 0.9, ordenacao: 1.1, foto: 0, ativacao: 0.25, descida: 0 };
+const VOO_CHEGADA = 1.2;   // segundos da nave entrando no anel
+
+function quadroInicial(missao) {
+  return {
+    tempo: 0,
+    ambiente: missao.entrada.ambiente,
+    modulos: missao.entrada.modulos.map(m => ({ ...m, estado: "órbita", motivo: "" })),
+    logs: [], alertas: [], chegadas: [],
+    checagem: null, ordenacao: null, rodada: {}, descendo: null
+  };
+}
+
+function aplicarPasso(q, p) {
+  const n = { ...q, tempo: p.tempo };
+  if (p.tipo === "log") {
+    n.logs = [...q.logs, p.texto];
+    const chegou = p.texto.match(/min: (\S+) chegou$/);
+    if (chegou) n.chegadas = [...q.chegadas, chegou[1]];
+  } else if (p.tipo === "foto" || p.tipo === "ativacao" || p.tipo === "descida") {
+    n.modulos = p.modulos;
+    if (p.ambiente) n.ambiente = p.ambiente;
+    const voando = p.modulos.find(m => m.estado === "descendo");
+    n.descendo = voando ? voando.id : null;
+    // Uma rodada nova de checagens começa a cada foto do ciclo.
+    if (p.tipo === "foto") n.rodada = {};
+  } else if (p.tipo === "checagem") {
+    n.checagem = p;
+    n.rodada = { ...q.rodada, [p.id]: p.motivo === "" };
+    // O simulador grava o motivo devolvido pelo autorizar no próprio módulo.
+    n.modulos = q.modulos.map(m => m.id === p.id ? { ...m, motivo: p.motivo } : m);
+  } else if (p.tipo === "ordenacao") {
+    n.ordenacao = p;
+  }
+  return n;
+}
+
+function montarRoteiro(missao) {
+  const cenas = [];
+  let q = quadroInicial(missao), t = 0, tempoAnt = 0;
+  for (const p of missao.linha_do_tempo) {
+    if (p.tempo > tempoAnt) {
+      const dt = (p.tempo - tempoAnt) * SEG_POR_MIN;
+      t += q.descendo ? dt : Math.min(dt, ESPERA_MAX);
+      tempoAnt = p.tempo;
+    }
+    q = aplicarPasso(q, p);
+    cenas.push({ inicio: t, p, q });
+    t += PAUSA[p.tipo];
+  }
+  // Marcos de animação: chegada de cada nave, início e fim de cada descida, acidentes.
+  const chegada = {}, descidas = [], acidentes = {};
+  cenas.forEach((c, i) => {
+    if (c.p.tipo === "log") {
+      const ch = c.p.texto.match(/min: (\S+) chegou$/);
+      if (ch) chegada[ch[1]] = c.inicio;
+      const ac = c.p.texto.match(/min: (\S+) acidente$/);
+      if (ac) acidentes[ac[1]] = c.inicio;
+    }
+    if (c.p.tipo === "descida") {
+      const fim = cenas.find((d, j) => j > i && d.p.tempo > c.p.tempo);
+      descidas.push({ id: c.p.id, inicio: c.inicio, fim: fim ? fim.inicio : c.inicio + 5 * SEG_POR_MIN });
+    }
+  });
+  return { cenas, chegada, descidas, acidentes, duracao: t + 0.5 };
+}
+
+function cenaEm(roteiro, t) {
+  // Última cena que já começou (busca binária: as cenas estão em ordem de início).
+  let a = 0, b = roteiro.cenas.length - 1, achou = -1;
+  while (a <= b) {
+    const m = (a + b) >> 1;
+    if (roteiro.cenas[m].inicio <= t) { achou = m; a = m + 1; } else b = m - 1;
+  }
+  return achou;
+}
+
+function relogioEm(roteiro, k, t) {
+  // Interpola o relógio da missão entre duas cenas de horários diferentes.
+  if (k < 0) return 0;
+  const c = roteiro.cenas[k], prox = roteiro.cenas[k + 1];
+  if (!prox || prox.p.tempo === c.p.tempo) return c.p.tempo;
+  const ini = c.inicio + PAUSA[c.p.tipo];
+  const f = Math.max(0, Math.min(1, (t - ini) / Math.max(0.001, prox.inicio - ini)));
+  return c.p.tempo + (prox.p.tempo - c.p.tempo) * f;
+}
+
+function conferirFinal(missao, roteiro) {
+  // Critério 2: o último quadro da reprodução é o estado final do simulador.
+  const q = roteiro.cenas[roteiro.cenas.length - 1].q;
+  const f = missao.final;
+  const igual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  if (!igual(q.modulos, f.modulos)) return "modulos";
+  if (!igual(q.ambiente, f.ambiente)) return "ambiente";
+  if (!igual(q.logs, f.historico)) return "historico";
+  if (q.tempo !== f.tempo) return "tempo";
+  return "ok";
+}
+
+/* ---------- Telas ---------- */
+function mostrarMissao(q) {
+  $("relogio").textContent = "T+" + fmt(q.tempo);
+  const clima = $("amb-clima");
+  clima.textContent = q.ambiente[0] ? "ATM OK" : "ATM RUIM";
+  clima.className = q.ambiente[0] ? "ok" : "ruim";
+  const area = $("amb-area");
+  area.textContent = "ÁREA " + q.ambiente[1].toUpperCase();
+  area.className = q.ambiente[1] === "livre" ? "ok" : q.ambiente[1] === "obstruída" ? "ruim" : "aviso";
+}
+
+function mostrarFila(q) {
+  // Primeiro quem desceu, na ordem do histórico; depois a espera; depois a órbita.
+  const porId = Object.fromEntries(q.modulos.map(m => [m.id, m]));
+  const ordem = [];
+  for (const linha of q.logs) {
+    const achou = linha.match(/min: (\S+) iniciou descida$/);
+    if (achou && !ordem.includes(achou[1])) ordem.push(achou[1]);
+  }
+  // A espera segue a última ordenação da rodada; quem não foi ordenado vem pela chegada.
+  const esperando = q.chegadas.filter(id => porId[id].estado === "espera");
+  const ordenados = q.ordenacao && q.ordenacao.tempo === q.tempo ? q.ordenacao.depois : [];
+  for (const id of ordenados) if (esperando.includes(id) && !ordem.includes(id)) ordem.push(id);
+  for (const id of esperando) if (!ordem.includes(id)) ordem.push(id);
+  for (const m of q.modulos) if (!ordem.includes(m.id)) ordem.push(m.id);
+  $("fila-info").textContent = esperando.length ? esperando.length + " esp." : "";
+  const ol = $("fila");
+  ol.replaceChildren();
+  ordem.slice(0, 6).forEach((id, i) => {
+    const m = porId[id];
+    const li = el("li", "", "");
+    li.title = ROTULO[m.estado] + (m.motivo ? ": " + m.motivo : "");
+    // Na espera, a luz mostra o resultado da checagem desta rodada (verde apto, vermelho bloqueado).
+    let luz = CLASSE[m.estado];
+    if (m.estado === "espera" && id in q.rodada) luz = q.rodada[id] ? "e-operacional" : "e-acidente";
+    li.append(el("span", "pos", String(i + 1).padStart(2, "0")), el("span", "id", m.id),
+              el("span", "", m.tipo.slice(0, 11)), el("span", "luz " + luz));
+    ol.append(li);
+  });
+}
+
+function mostrarPortas(q) {
+  const svg = $("portas");
+  const NS = "http://www.w3.org/2000/svg";
+  const s = (tag, attrs, texto) => {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (texto !== undefined) e.textContent = texto;
+    svg.append(e);
+    return e;
+  };
+  svg.replaceChildren();
+  const c = q.checagem;
+  if (!c) {
+    $("portas-id").textContent = "—";
+    s("text", { x: 0, y: 55 }, "sem checagem");
+    return;
+  }
+  $("portas-id").textContent = c.id + " T+" + fmt(c.tempo);
+  const cor = (ok) => ok ? "#4dff95" : "#ff4d63";
+  PORTAS.forEach(([chave, nome], i) => {
+    const y = 12 + i * 26, ok = c.portas[chave];
+    s("circle", { cx: 8, cy: y, r: 6, fill: cor(ok), style: `filter: drop-shadow(0 0 4px ${cor(ok)})` });
+    s("text", { x: 20, y: y + 5 }, nome);
+    s("path", { d: `M66 ${y} H104 L130 ${40 + i * 9}`, stroke: cor(ok), "stroke-width": 3, fill: "none" });
+  });
+  s("path", { d: "M130 28 H152 A26 26 0 0 1 152 80 H130 Z", fill: "#06141c", stroke: "#46f0ff", "stroke-width": 3 });
+  s("text", { x: 133, y: 59 }, "AND");
+  const liberado = Object.values(c.portas).every(Boolean);
+  s("path", { d: "M178 54 H206", stroke: cor(liberado), "stroke-width": 4 });
+  s("circle", { cx: 216, cy: 54, r: 10, fill: cor(liberado), style: `filter: drop-shadow(0 0 7px ${cor(liberado)})` });
+  s("text", { x: 150, y: 104, style: `fill: ${cor(liberado)}` }, liberado ? "LIBERA" : "BLOQUEIA");
+}
+
+function mostrarCombustivel(q) {
+  const caixa = $("barras");
+  caixa.replaceChildren();
+  const teto = Math.max(...missaoAtual.entrada.modulos.map(m => m.combustivel), ...q.modulos.map(m => m.minimo)) || 1;
+  for (const m of q.modulos.slice(0, 6)) {
+    const trilho = el("div", "trilho");
+    const cheio = el("div", "cheio");
+    cheio.style.width = Math.max(0, Math.min(100, m.combustivel / teto * 100)) + "%";
+    // O mínimo só vale para quem ainda vai descer; em solo a barra fica neutra.
+    if (NO_SOLO.includes(m.estado)) cheio.classList.add("solo");
+    else if (m.combustivel < m.minimo) cheio.classList.add("baixo");
+    else if ((m.combustivel - m.minimo) / m.minimo <= missaoAtual.entrada.config.margem) cheio.classList.add("urgente");
+    const minimo = el("div", "minimo");
+    minimo.style.left = Math.min(100, m.minimo / teto * 100) + "%";
+    trilho.append(cheio, minimo);
+    const linha = el("div", "barra");
+    linha.title = m.tipo + ": " + fmt(m.combustivel) + " kg (mínimo para descer " + fmt(m.minimo) + " kg)";
+    linha.append(el("span", "id", m.id), trilho, el("span", "kg", fmt(m.combustivel)));
+    caixa.append(linha);
+  }
+}
+
+function classeLinha(linha) {
+  if (linha.includes("acidente")) return "t-acidente";
+  if (linha.includes("evento") || linha.includes("suspenso")) return "t-evento";
+  return "";
+}
+
+function mostrarLogs(q) {
+  // CRT: só o fato mais recente, grande. Telemetria no vidro: as últimas linhas.
+  const crt = $("crt");
+  crt.replaceChildren();
+  const ultimas = q.logs.slice(-2);
+  ultimas.forEach((linha, i) => {
+    crt.append(el("div", i === ultimas.length - 1 ? "agora" : "", linha.replace(" min:", "'")));
+  });
+  const tel = $("telemetria");
+  tel.replaceChildren();
+  for (const linha of q.logs.slice(-3)) tel.append(el("div", classeLinha(linha), "> " + linha));
+  const c = q.checagem;
+  if (c && c.motivo) tel.append(el("div", "t-motivo", "! " + c.id + ": " + c.motivo.replace(/; $/, "").split("; ").join(" · ")));
+}
+
+function mostrarHud(q) {
+  const alto = q.modulos.filter(m => NO_ALTO.includes(m.estado));
+  const solo = q.modulos.filter(m => NO_SOLO.includes(m.estado) && m.estado !== "acidente");
+  const emOrbita = alto.filter(m => m.estado !== "órbita").map(m => m.id);
+  const chegando = alto.filter(m => m.estado === "órbita").map(m => m.id);
+  $("hud-orbita-ids").textContent = (emOrbita.length ? emOrbita.join(" · ") : "vazia") +
+    (chegando.length ? "  | chegando: " + chegando.join(" · ") : "");
+  $("hud-base-ids").textContent = solo.length ? solo.map(m => m.id).join(" · ") : "vazia";
+  const bloqueados = Object.values(q.rodada).filter(ok => !ok).length;
+  $("hud-alertas").textContent = bloqueados ? bloqueados + " bloqueado" + (bloqueados === 1 ? "" : "s") : "";
+  const area = $("hud-area-val");
+  area.textContent = q.ambiente[1].toUpperCase();
+  area.className = "grande " + (q.ambiente[1] === "livre" ? "ok" : q.ambiente[1] === "obstruída" ? "ruim" : "aviso");
+}
+
+/* ---------- Céu em traço de anime: cor chapada, contorno e sombra dura ---------- */
+function aleatorio(semente) {
+  // Gerador com semente: o céu sai igual a cada abertura.
+  let s = semente;
+  return () => (s = (s * 16807) % 2147483647) / 2147483647;
+}
+const ceu = $("ceu");
+const ctx = ceu.getContext("2d");
+const estrelas = [], brilhos = [], terrenos = [], crateras = [];
+(function prepararCeu() {
+  const r = aleatorio(7);
+  for (let i = 0; i < 220; i++) estrelas.push([r(), r(), r() < 0.85 ? 1 : 1.8, 0.35 + r() * 0.65]);
+  for (let i = 0; i < 9; i++) brilhos.push([r(), r(), 3 + r() * 4]);
+  // Manchas do relevo: polígonos irregulares, cor chapada.
+  for (let i = 0; i < 34; i++) {
+    const pontos = [], n = 8;
+    const cx = r() * 1.8 - 0.9, cy = r() * 1.8 - 0.9, raio = 0.05 + r() * 0.12;
+    for (let k = 0; k < n; k++) {
+      const a = k / n * Math.PI * 2, d = raio * (0.6 + r() * 0.6);
+      pontos.push([cx + Math.cos(a) * d, cy + Math.sin(a) * d * 0.75]);
+    }
+    terrenos.push([pontos, r() < 0.6 ? "escuro" : "claro"]);
+  }
+  for (let i = 0; i < 16; i++) crateras.push([r() * 1.6 - 0.8, r() * 1.6 - 0.8, 1.5 + r() * 4]);
+})();
+
+const MARTE = { cx: 293, cy: 132, r: 102 };
+const ORBITA = { rx: 205, ry: 60, inclinacao: -0.08 };
+
+function desenharMarte() {
+  const { cx, cy, r } = MARTE;
+  // Halo de atmosfera
+  const halo = ctx.createRadialGradient(cx, cy, r * 0.95, cx, cy, r * 1.32);
+  halo.addColorStop(0, "#ff7a4a40");
+  halo.addColorStop(1, "#ff7a4a00");
+  ctx.fillStyle = halo;
+  ctx.beginPath(); ctx.arc(cx, cy, r * 1.32, 0, Math.PI * 2); ctx.fill();
+
+  ctx.save();
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.clip();
+  ctx.fillStyle = "#d9603d";
+  ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+  for (const [pontos, tom] of terrenos) {
+    ctx.fillStyle = tom === "escuro" ? "#c04f33" : "#e57a50";
+    ctx.beginPath();
+    pontos.forEach(([x, y], i) => i ? ctx.lineTo(cx + x * r, cy + y * r) : ctx.moveTo(cx + x * r, cy + y * r));
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = "#a3402b"; ctx.lineWidth = 0.6; ctx.stroke();
+  }
+  // Crateras: anel escuro com borda clara do lado da luz.
+  for (const [x, y, t] of crateras) {
+    ctx.strokeStyle = "#a23f2a"; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.arc(cx + x * r, cy + y * r, t, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = "#f29a6c"; ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.arc(cx + x * r, cy + y * r, t, Math.PI * 0.1, Math.PI * 0.9); ctx.stroke();
+  }
+  // Cânion (Valles Marineris estilizado)
+  ctx.strokeStyle = "#7d2a1c"; ctx.lineWidth = 2.2;
+  ctx.beginPath(); ctx.moveTo(cx - r * 0.55, cy + r * 0.05);
+  ctx.bezierCurveTo(cx - r * 0.2, cy - r * 0.08, cx + r * 0.1, cy + r * 0.12, cx + r * 0.5, cy + r * 0.02);
+  ctx.stroke();
+  // Calota polar
+  ctx.fillStyle = "#fff1e6";
+  ctx.beginPath(); ctx.ellipse(cx - r * 0.12, cy - r * 0.92, r * 0.34, r * 0.13, -0.1, 0, Math.PI * 2); ctx.fill();
+  // Sombra dura (cel shading): tudo fora de um círculo deslocado para a luz.
+  ctx.fillStyle = "#6e2418d9";
+  ctx.beginPath();
+  ctx.rect(cx - r, cy - r, r * 2, r * 2);
+  ctx.arc(cx - r * 0.3, cy - r * 0.26, r * 1.06, 0, Math.PI * 2, true);
+  ctx.fill("evenodd");
+  ctx.restore();
+  // Contorno e luz de borda
+  ctx.strokeStyle = "#2b0e0b"; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+  ctx.strokeStyle = "#ffc09a"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(cx, cy, r - 2.5, Math.PI * 1.05, Math.PI * 1.55); ctx.stroke();
+}
+
+function desenharNave(x, y, escala, id, estado, legenda) {
+  // Nave de carga: casco em blocos, contorno escuro e propulsores com raios de luz.
+  const cor = COR[estado];
+  const ligada = NO_ALTO.includes(estado);
+  ctx.save();
+  ctx.translate(x, y); ctx.scale(escala, escala);
+  ctx.lineJoin = "round";
+  if (ligada) {
+    for (const dx of [-15, 15]) {
+      const chama = ctx.createRadialGradient(dx, 15, 0, dx, 15, 13);
+      chama.addColorStop(0, "#fffbe0"); chama.addColorStop(0.35, "#ffc35a"); chama.addColorStop(1, "#ff7a1a00");
+      ctx.fillStyle = chama;
+      ctx.beginPath(); ctx.arc(dx, 15, 13, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "#ffe2a0"; ctx.lineWidth = 0.8;
+      ctx.beginPath(); ctx.moveTo(dx - 16, 15); ctx.lineTo(dx + 16, 15); ctx.moveTo(dx, 2); ctx.lineTo(dx, 28); ctx.stroke();
+    }
+  }
+  ctx.strokeStyle = "#151824"; ctx.lineWidth = 1.6;
+  // Pods dos propulsores
+  for (const dx of [-15, 15]) {
+    ctx.fillStyle = "#8e96aa";
+    ctx.beginPath(); ctx.rect(dx - 6, 2, 12, 10); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#4a5064";
+    ctx.beginPath(); ctx.rect(dx - 4, 11, 8, 3); ctx.fill(); ctx.stroke();
+  }
+  // Casco: face de cima clara e face lateral em sombra
+  ctx.fillStyle = "#7b8396";
+  ctx.beginPath(); ctx.moveTo(-24, -2); ctx.lineTo(24, -2); ctx.lineTo(22, 6); ctx.lineTo(-22, 6); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#e3e7ef";
+  ctx.beginPath(); ctx.moveTo(-20, -14); ctx.lineTo(20, -14); ctx.lineTo(24, -2); ctx.lineTo(-24, -2); ctx.closePath(); ctx.fill(); ctx.stroke();
+  // Contêineres no dorso
+  ctx.fillStyle = "#c3c9d6";
+  for (const dx of [-13, 1]) { ctx.beginPath(); ctx.rect(dx, -20, 12, 7); ctx.fill(); ctx.stroke(); }
+  ctx.beginPath(); ctx.moveTo(-17, -8); ctx.lineTo(17, -8); ctx.stroke();
+  // Faixa de estado
+  ctx.fillStyle = cor;
+  ctx.shadowColor = cor; ctx.shadowBlur = 8;
+  ctx.fillRect(-20, 0, 9, 3);
+  ctx.restore();
+  rotulo(x, y - 26 * escala, id, cor);
+  if (legenda) {
+    ctx.save();
+    ctx.font = "9px ui-monospace, Menlo, monospace";
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#9fb6cc";
+    ctx.fillText(legenda, x, y + 20 * escala + 6);
+    ctx.restore();
+  }
+}
+
+function desenharModuloSolo(x, y, id, estado) {
+  // Módulo pousado: domo sobre a base, no mesmo traço.
+  const cor = COR[estado];
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.strokeStyle = "#1a0a08"; ctx.lineWidth = 1.4;
+  if (estado === "acidente") {
+    ctx.rotate(0.5);
+    ctx.fillStyle = "#3a2420";
+    ctx.beginPath(); ctx.ellipse(0, 4, 14, 4, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.fillStyle = "#d8dce6";
+  ctx.beginPath(); ctx.moveTo(-10, 3); ctx.lineTo(-10, -1); ctx.arc(0, -1, 10, Math.PI, 0); ctx.lineTo(10, 3); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#7b8396";
+  ctx.fillRect(-12, 3, 24, 3); ctx.strokeRect(-12, 3, 24, 3);
+  ctx.fillStyle = cor; ctx.shadowColor = cor; ctx.shadowBlur = 8;
+  ctx.beginPath(); ctx.arc(0, -4, 2.6, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  rotulo(x, y - 15, id, cor);
+}
+
+function rotulo(x, y, texto, cor) {
+  ctx.save();
+  ctx.font = "bold 11px ui-monospace, Menlo, monospace";
+  ctx.textAlign = "center";
+  ctx.lineWidth = 3; ctx.strokeStyle = "#06060f";
+  ctx.strokeText(texto, x, y);
+  ctx.fillStyle = cor; ctx.shadowColor = cor; ctx.shadowBlur = 6;
+  ctx.fillText(texto, x, y);
+  ctx.restore();
+}
+
+function desenharCeu(q, t, k) {
+  const escala = escalaAtual * (window.devicePixelRatio || 1);
+  ceu.width = Math.round(VIDRO.w * escala);
+  ceu.height = Math.round(VIDRO.h * escala);
+  ctx.setTransform(escala, 0, 0, escala, 0, 0);
+  const fundo = ctx.createRadialGradient(MARTE.cx, MARTE.cy, 40, MARTE.cx, MARTE.cy, 420);
+  fundo.addColorStop(0, "#151436"); fundo.addColorStop(1, "#05050f");
+  ctx.fillStyle = fundo;
+  ctx.fillRect(0, 0, VIDRO.w, VIDRO.h);
+  for (const [x, y, t, a] of estrelas) {
+    ctx.fillStyle = `rgba(214,236,255,${a})`;
+    ctx.fillRect(x * VIDRO.w, y * VIDRO.h, t, t);
+  }
+  ctx.strokeStyle = "#e6f4ffcc"; ctx.lineWidth = 1;
+  for (const [x, y, t] of brilhos) {
+    const px = x * VIDRO.w, py = y * VIDRO.h;
+    ctx.beginPath(); ctx.moveTo(px - t, py); ctx.lineTo(px + t, py); ctx.moveTo(px, py - t); ctx.lineTo(px, py + t); ctx.stroke();
+  }
+  // Órbita: metade de trás antes do planeta, metade da frente depois.
+  const orbita = (inicio, fim) => {
+    ctx.save();
+    ctx.strokeStyle = "#46f0ff55"; ctx.setLineDash([5, 6]); ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.ellipse(MARTE.cx, MARTE.cy, ORBITA.rx, ORBITA.ry, ORBITA.inclinacao, inicio, fim); ctx.stroke();
+    ctx.restore();
+  };
+  orbita(Math.PI, Math.PI * 2);
+  desenharMarte();
+  orbita(0, Math.PI);
+
+  // Cada módulo tem lugares fixos pelo índice do cadastro, para não "pular" na tela.
+  const n = q.modulos.length;
+  const posicoes = {};
+  q.modulos.forEach((m, i) => {
+    const pos = posicaoNoCeu(m, i, n, t);
+    posicoes[m.id] = pos;
+    if (pos.alvo) desenharAlvo(pos.alvo[0], pos.alvo[1], t);
+  });
+  q.modulos.forEach((m) => {
+    const pos = posicoes[m.id];
+    if (pos.tipo === "solo") desenharModuloSolo(pos.x, pos.y, m.id, m.estado);
+    else desenharNave(pos.x, pos.y, pos.escala, m.id, m.estado, pos.legenda);
+    // A explosão começa junto com a linha "acidente" do histórico.
+    if (roteiro.acidentes[m.id] !== undefined) {
+      const f = (t - roteiro.acidentes[m.id]) / 1.6;
+      if (f >= 0 && f < 1) desenharExplosao(pos.x, pos.y, f);
+    }
+  });
+  // Destaque de quem está sendo checado agora.
+  const c = k >= 0 ? roteiro.cenas[k] : null;
+  if (c && c.p.tipo === "checagem" && t - c.inicio < PAUSA.checagem && posicoes[c.p.id]) {
+    const pos = posicoes[c.p.id];
+    desenharVarredura(pos.x, pos.y, (t - c.inicio) / PAUSA.checagem, c.p.motivo === "");
+  }
+}
+
+const suave = (f) => f < 0.5 ? 2 * f * f : 1 - Math.pow(-2 * f + 2, 2) / 2;
+function lugarSolo(i, n) {
+  const u = n === 1 ? 0 : -1 + 2 * i / (n - 1);
+  return [MARTE.cx + u * MARTE.r * 0.58, MARTE.cy + MARTE.r * 0.5 - (1 - u * u) * MARTE.r * 0.08];
+}
+// Lugares em volta do planeta, em raios de Marte, como na ilustração: dois de cada
+// lado em alturas diferentes, fugindo da telemetria (embaixo à direita) e do monitor.
+const LUGARES = [[-1.65, 0.05], [1.6, -0.15], [-2.3, 0.5], [2.3, 0.45], [-1.2, 0.8], [1.2, 0.55]];
+function lugarOrbita(i, n) {
+  const [u, v] = LUGARES[i % LUGARES.length];
+  return [MARTE.cx + u * MARTE.r, MARTE.cy + v * MARTE.r];
+}
+function lugarLonge(i) {
+  return [40 + i * 44, 62 + (i % 2) * 26];
+}
+
+function posicaoNoCeu(m, i, n, t) {
+  if (NO_SOLO.includes(m.estado)) {
+    const [x, y] = lugarSolo(i, n);
+    return { tipo: "solo", x, y };
+  }
+  const descida = roteiro.descidas.find(d => d.id === m.id && d.inicio <= t);
+  if (m.estado === "descendo" && descida) {
+    const f = suave(Math.max(0, Math.min(1, (t - descida.inicio) / (descida.fim - descida.inicio))));
+    const [x0, y0] = lugarOrbita(i, n), [x1, y1] = lugarSolo(i, n);
+    return { tipo: "nave", x: x0 + (x1 - x0) * f, y: y0 + (y1 - y0) * f, escala: 1 - 0.45 * f, alvo: [x1, y1] };
+  }
+  const chegou = roteiro.chegada[m.id];
+  if (chegou !== undefined && chegou <= t) {
+    const f = suave(Math.max(0, Math.min(1, (t - chegou) / VOO_CHEGADA)));
+    const [x0, y0] = lugarLonge(i), [x1, y1] = lugarOrbita(i, n);
+    return { tipo: "nave", x: x0 + (x1 - x0) * f, y: y0 + (y1 - y0) * f, escala: 0.5 + 0.5 * f };
+  }
+  const [x, y] = lugarLonge(i);
+  return { tipo: "nave", x, y, escala: 0.5, legenda: "ETA " + fmt(m.eta) };
+}
+
+function desenharAlvo(x, y, t) {
+  // Área reservada: anel pulsando no ponto de pouso.
+  const f = (t * 1.5) % 1;
+  ctx.save();
+  ctx.strokeStyle = `rgba(255,196,77,${1 - f})`;
+  ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.ellipse(x, y + 4, 8 + f * 14, 3 + f * 5, 0, 0, Math.PI * 2); ctx.stroke();
+  ctx.strokeStyle = "#ffc44d"; ctx.setLineDash([3, 3]);
+  ctx.beginPath(); ctx.ellipse(x, y + 4, 10, 3.5, 0, 0, Math.PI * 2); ctx.stroke();
+  ctx.restore();
+}
+
+function desenharVarredura(x, y, f, ok) {
+  const cor = ok ? "77,255,149" : "255,77,99";
+  ctx.save();
+  ctx.strokeStyle = `rgba(${cor},${1 - f * 0.6})`;
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(x, y - 4, 22 + f * 10, 0, Math.PI * 2); ctx.stroke();
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.arc(x, y - 4, 30, f * Math.PI * 2, f * Math.PI * 2 + Math.PI); ctx.stroke();
+  ctx.restore();
+}
+
+function desenharExplosao(x, y, f) {
+  ctx.save();
+  const r = 6 + f * 30;
+  const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+  g.addColorStop(0, `rgba(255,250,220,${1 - f})`);
+  g.addColorStop(0.4, `rgba(255,140,60,${0.9 * (1 - f)})`);
+  g.addColorStop(1, "rgba(255,60,60,0)");
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
+/* ---------- Palco e reprodução ---------- */
+let missaoAtual = null, roteiro = null, escalaAtual = 1;
+let agora = 0, velocidade = 1, tocando = false, ultimoQuadro = null, cenaMostrada = -2;
+
+function ajustarPalco() {
+  escalaAtual = Math.min(window.innerWidth / ARTE.w, window.innerHeight / ARTE.h);
+  const palco = $("palco");
+  palco.style.transform = `scale(${escalaAtual}) translate(-50%, -50%)`;
+  if (roteiro) desenhar();
+}
+
+function desenhar() {
+  const k = cenaEm(roteiro, agora);
+  const q = k >= 0 ? roteiro.cenas[k].q : quadroInicial(missaoAtual);
+  // As telas só mudam quando muda a cena; o céu e o relógio andam a cada quadro.
+  if (k !== cenaMostrada) {
+    cenaMostrada = k;
+    mostrarMissao(q);
+    mostrarFila(q);
+    mostrarPortas(q);
+    mostrarCombustivel(q);
+    mostrarLogs(q);
+    mostrarHud(q);
+    $("contador").textContent = (k + 1) + "/" + roteiro.cenas.length;
+  }
+  $("relogio").textContent = "T+" + fmt(relogioEm(roteiro, k, agora));
+  desenharCeu(q, agora, k);
+  $("barra-tempo").value = Math.round(agora / roteiro.duracao * 1000);
+}
+
+function avancar(ts) {
+  if (!tocando) return;
+  if (ultimoQuadro !== null) agora += (ts - ultimoQuadro) / 1000 * velocidade;
+  ultimoQuadro = ts;
+  if (agora >= roteiro.duracao) { agora = roteiro.duracao; pausar(); }
+  desenhar();
+  if (tocando) requestAnimationFrame(avancar);
+}
+function tocar() {
+  if (agora >= roteiro.duracao) agora = 0;
+  tocando = true;
+  ultimoQuadro = null;
+  $("b-play").textContent = "❚❚";
+  requestAnimationFrame(avancar);
+}
+function pausar() {
+  tocando = false;
+  $("b-play").textContent = "▶";
+}
+function irPara(t) {
+  agora = Math.max(0, Math.min(roteiro.duracao, t));
+  desenhar();
+}
+function proximoFato() {
+  // Pula para a próxima cena que muda algo visível (fotos sozinhas não contam).
+  pausar();
+  const k = cenaEm(roteiro, agora);
+  for (let j = k + 1; j < roteiro.cenas.length; j++) {
+    if (roteiro.cenas[j].p.tipo !== "foto") { irPara(roteiro.cenas[j].inicio); return; }
+  }
+  irPara(roteiro.duracao);
+}
+
+function escolher(nome, inicio) {
+  pausar();
+  fecharTela();
+  missaoAtual = window.MISSOES.find(m => m.nome === nome);
+  roteiro = montarRoteiro(missaoAtual);
+  document.body.dataset.confere = conferirFinal(missaoAtual, roteiro);
+  cenaMostrada = -2;
+  agora = 0;
+  if (inicio === undefined) { desenhar(); tocar(); }
+  else irPara(inicio);
+}
+
+/* ---------- Tela ampliada ---------- */
+let telaAberta = null;
+function abrirTela(id) {
+  fecharTela();
+  const e = $(id);
+  const esc = Math.min(560 / e.offsetWidth, 290 / e.offsetHeight);
+  const w = e.offsetWidth * esc, h = e.offsetHeight * esc;
+  const x = 667 - w / 2, y = 318 - h / 2;
+  encaixar(e, [[x, y], [x + w, y], [x, y + h], [x + w, y + h]]);
+  e.classList.add("aberta");
+  telaAberta = id;
+}
+function fecharTela() {
+  if (!telaAberta) return;
+  const e = $(telaAberta);
+  encaixar(e, QUADROS[telaAberta]);
+  e.classList.remove("aberta");
+  telaAberta = null;
+}
+
+function iniciar() {
+  if (!Array.isArray(window.MISSOES) || window.MISSOES.length === 0) {
+    document.body.textContent = "dados.js não encontrado. Rode: python3 exportar_painel.py";
+    return;
+  }
+  for (const id in QUADROS) {
+    encaixar($(id), QUADROS[id]);
+    $(id).addEventListener("click", () => telaAberta === id ? fecharTela() : abrirTela(id));
+  }
+  const sel = $("seletor");
+  for (const m of window.MISSOES) {
+    const op = el("option", "", m.nome.replaceAll("_", " "));
+    op.value = m.nome;
+    sel.append(op);
+  }
+  const params = new URLSearchParams(location.search);
+  const inicial = params.get("cenario") || "normal";
+  sel.value = window.MISSOES.some(m => m.nome === inicial) ? inicial : window.MISSOES[0].nome;
+  sel.addEventListener("change", () => { escolher(sel.value); sel.blur(); });
+  $("b-play").addEventListener("click", () => tocando ? pausar() : tocar());
+  $("b-inicio").addEventListener("click", () => { pausar(); irPara(0); });
+  $("b-passo").addEventListener("click", proximoFato);
+  $("velocidade").addEventListener("change", (e) => { velocidade = Number(e.target.value); });
+  $("barra-tempo").addEventListener("input", (e) => { pausar(); irPara(e.target.value / 1000 * roteiro.duracao); });
+  document.addEventListener("keydown", (e) => {
+    if (e.target.tagName === "SELECT" || e.target.tagName === "INPUT") return;
+    if (e.key === " ") { e.preventDefault(); tocando ? pausar() : tocar(); }
+    else if (e.key === "ArrowRight") proximoFato();
+    else if (e.key === "Escape") fecharTela();
+  });
+  window.addEventListener("resize", ajustarPalco);
+  ajustarPalco();
+  // ?t=segundos abre parado naquele instante; ?fim=1 abre no fim (usados para conferir telas).
+  const t = params.has("fim") ? Infinity : params.has("t") ? Number(params.get("t")) : undefined;
+  escolher(sel.value, t);
+  if (params.has("abrir")) abrirTela(params.get("abrir"));
+  document.body.dataset.pronto = window.MISSOES.length;
+}
+
+window.addEventListener("error", (e) => { document.body.dataset.erro = e.message; });
+iniciar();
+</script>
+</body>
+</html>
